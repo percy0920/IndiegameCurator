@@ -3,10 +3,10 @@ import requests
 import random
 import re
 
-# 1. 페이지 설정을 넓은 화면(wide)으로 변경하여 잉여 여백 제거
+# 1. 페이지 설정 (사이드바 기본 펼침 상태로 강제 고정)
 st.set_page_config(page_title="Retro Game Curator", page_icon="🕹️", layout="wide", initial_sidebar_state="expanded")
 
-# 2. 강력한 레트로 아케이드 네온 CSS 주입 (여백 제거, 네온 컬러, 글로우 효과)
+# 2. 레트로 아케이드 네온 CSS 주입 (+ 사이드바 접기 버튼 숨기기 방어 코드 포함)
 retro_css = """
 <style>
 /* 둥근모꼴(레트로 한글) 폰트 불러오기 */
@@ -17,24 +17,29 @@ html, body, [class*="css"], .stApp {
     background-color: #000000 !important;
 }
 
-/* 🎯 갤러그 도트 배경을 화면 전체에 꽉 채우기 (여백 없음) */
+/* 🎯 갤러그 도트 배경을 화면 전체에 꽉 채우기 */
 .stApp::before {
     content: "";
     position: fixed;
     top: -50%; left: -50%; width: 200%; height: 200%;
-    /* 네온 핑크색 갤러그 우주선 패턴 */
     background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 11 11' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23FF0055' fill-opacity='1'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='8' y='0' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='7' y='1' width='1' height='1'/%3E%3Crect x='2' y='2' width='7' height='1'/%3E%3Crect x='1' y='3' width='2' height='1'/%3E%3Crect x='4' y='3' width='3' height='1'/%3E%3Crect x='8' y='3' width='2' height='1'/%3E%3Crect x='0' y='4' width='11' height='1'/%3E%3Crect x='0' y='5' width='1' height='1'/%3E%3Crect x='2' y='5' width='7' height='1'/%3E%3Crect x='10' y='5' width='1' height='1'/%3E%3Crect x='0' y='6' width='1' height='1'/%3E%3Crect x='2' y='6' width='1' height='1'/%3E%3Crect x='8' y='6' width='1' height='1'/%3E%3Crect x='10' y='6' width='1' height='1'/%3E%3Crect x='3' y='7' width='2' height='1'/%3E%3Crect x='6' y='7' width='2' height='1'/%3E%3C/g%3E%3C/svg%3E");
     background-repeat: repeat;
     transform: rotate(-15deg);
-    opacity: 0.15; /* 배경 패턴 밝기 조절 */
+    opacity: 0.15;
     z-index: 0;
     pointer-events: none;
 }
 
-/* 🎯 불필요한 상단 여백 및 헤더 완전 제거 */
+/* 🎯 실수로 사이드바를 닫아버리는 접기 버튼을 화면에서 강제 숨김 */
+[data-testid="collapsedControl"] {
+    display: none !important;
+}
+
+/* 상단 헤더 제거 */
 header[data-testid="stHeader"] {
     display: none !important;
 }
+
 .block-container {
     padding-top: 2rem !important;
     padding-bottom: 2rem !important;
@@ -42,15 +47,14 @@ header[data-testid="stHeader"] {
     padding-right: 5% !important;
     max-width: 100% !important;
     z-index: 1;
-    /* 본문 영역을 반투명 검은 박스로 덮어 글씨가 잘 보이게 함 */
     background-color: rgba(0, 0, 0, 0.8) !important;
-    border: 3px solid #00FFFF !important; /* 네온 사이안 테두리 */
+    border: 3px solid #00FFFF !important;
     box-shadow: 0 0 20px #00FFFF, inset 0 0 20px #00FFFF !important;
     border-radius: 10px !important;
     margin-top: 1rem !important;
 }
 
-/* 🎯 모든 텍스트에 폰트 적용 및 기본 컬러(네온 사이안) + 글로우 효과 */
+/* 텍스트 네온 효과 */
 * {
     font-family: 'NeoDunggeunmo', monospace !important;
 }
@@ -59,17 +63,16 @@ p, span, div, label, li {
     text-shadow: 0 0 5px rgba(0, 255, 255, 0.6) !important;
 }
 
-/* 제목(h1, h2, h3)은 네온 그린으로 강조 */
 h1, h2, h3 {
     color: #39FF14 !important;
     text-shadow: 0 0 10px #39FF14 !important;
     text-align: center;
 }
 
-/* 텍스트 입력창 스타일 */
+/* 입력창 스타일 */
 .stTextInput > div > div > input {
     background-color: #000000 !important;
-    color: #39FF14 !important; /* 입력 글씨는 네온 그린 */
+    color: #39FF14 !important;
     border: 3px solid #39FF14 !important;
     border-radius: 0px !important;
     font-size: 22px !important;
@@ -77,7 +80,7 @@ h1, h2, h3 {
     box-shadow: 0 0 15px rgba(57, 255, 20, 0.5) !important;
 }
 
-/* 버튼 스타일 (네온 핑크) */
+/* 버튼 스타일 */
 .stButton > button {
     background-color: #000000 !important;
     color: #FF0055 !important; 
@@ -106,7 +109,6 @@ section[data-testid="stSidebar"] * {
     text-shadow: 0 0 5px rgba(255, 0, 85, 0.5) !important;
 }
 
-/* 결과 박스 스타일 */
 .stAlert {
     background-color: #000000 !important;
     border: 2px solid #00FFFF !important;
@@ -125,7 +127,7 @@ st.markdown(retro_css, unsafe_allow_html=True)
 if "shown_games" not in st.session_state:
     st.session_state.shown_games = []
 
-# 4. 다국어 지원 딕셔너리 확장
+# 4. 다국어 지원 딕셔너리
 translations = {
     "한국어": {
         "title": "🕹️ THE ONE GAME CURATOR",
@@ -204,20 +206,16 @@ translations = {
     }
 }
 
-# 사이드바 언어 선택
 st.sidebar.markdown("### 🌐 SELECT LANGUAGE")
 selected_lang = st.sidebar.radio("", ["한국어", "English", "日本語", "中文", "Español"])
 t = translations[selected_lang]
 
-# 사이드바 스팀 평가 필터 선택 추가
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"### ⭐ {t['rating_label']}")
 rating_options = list(t['ratings'].keys())
-# 기본값으로 '복합적 이상'(인덱스 1) 설정
 selected_rating_label = st.sidebar.selectbox("", rating_options, index=1)
 min_rating_threshold = t['ratings'][selected_rating_label]
 
-# 5. UI 본문
 st.title(t["title"])
 st.markdown(f"<p style='text-align: center;'><b>{t['desc']}</b></p>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
@@ -243,7 +241,6 @@ def clean_html(raw_html):
     cleanr = re.compile('<.*?>')
     return re.sub(cleanr, '', raw_html).replace('&quot;', "'")
 
-# 6. 검색 및 검증 로직
 if search_button:
     if not user_keyword.strip():
         st.warning("PLEASE ENTER KEYWORD!")
@@ -285,7 +282,6 @@ if search_button:
                     if total_reviews == 0: continue
                     ratio = pos / total_reviews
                     
-                    # 🎯 유저가 사이드바에서 선택한 평가 기준(min_rating_threshold) 반영
                     if ratio < min_rating_threshold: continue 
                     
                     details_res = requests.get(f"https://store.steampowered.com/api/appdetails?appids={appid}&l={steam_lang}")
@@ -335,7 +331,6 @@ if search_button:
                         st.markdown(f"#### {t['critic_title']}")
                         tag_str = ", ".join(game_tags) if game_tags else "독창적인(Original)"
                         
-                        # 다국어 큐레이팅 노트 생성
                         if selected_lang == "한국어":
                             critic_review = f"**'{user_keyword}'**의 매력을 완벽하게 담아낸 수작입니다. 스팀 평가 **{rating_text}**는 결코 거짓말을 하지 않습니다.\n\n*{game_description[:100]}...*\n\n이 텍스트가 증명하듯, {tag_str} 요소를 엮어낸 이 게임은 당신이 찾던 바로 그 몰입감을 선사할 것입니다."
                         elif selected_lang == "English":
@@ -344,14 +339,13 @@ if search_button:
                             critic_review = f"**'{user_keyword}'**の魅力を完璧に表現した傑作です。Steam評価**{rating_text}**は決して嘘をつきません。\n\n*{game_description[:100]}...*\n\n{tag_str}の要素を組み合わせたこのゲームは、あなたが求めていた没入感を提供してくれるでしょう。"
                         elif selected_lang == "中文":
                             critic_review = f"这是一部完美捕捉了**'{user_keyword}'**魅力的杰作。Steam上的**{rating_text}**评价绝非虚言。\n\n*{game_description[:100]}...*\n\n凭借其{tag_str}元素，这款游戏将提供您一直在寻找的沉浸式体验。"
-                        else: # Español
+                        else:
                             critic_review = f"Una obra maestra que captura perfectamente la esencia de **'{user_keyword}'**. La calificación de **{rating_text}** en Steam es bien merecida.\n\n*{game_description[:100]}...*\n\nCon sus elementos de {tag_str}, este juego proporcionará exactamente la experiencia inmersiva que buscas."
                         
                         st.info(critic_review)
                         
                         st.markdown(f"#### {t['guide_title']}")
                         
-                        # 다국어 플레이 가이드 생성
                         if selected_lang == "한국어":
                             play_guide = f"1. **'{user_keyword}'** 키워드가 게임 속에서 어떻게 표현되었는지 관찰하세요.\n2. 실패를 두려워하지 말고 이 게임만의 템포에 몸을 맡겨보세요.\n3. 사운드를 꼭 켜고 세계관에 동화되는 것을 추천합니다."
                         elif selected_lang == "English":
@@ -360,7 +354,7 @@ if search_button:
                             play_guide = f"1. **'{user_keyword}'**というキーワードがゲーム内でどのように表現されているか観察してください。\n2. 失敗を恐れず、このゲーム独自のテンポに身を任せてみましょう。\n3. サウンドをオンにして世界観に没入することを強くお勧めします。"
                         elif selected_lang == "中文":
                             play_guide = f"1. 观察**'{user_keyword}'**关键字在游戏中的表现方式。\n2. 不要害怕失败；适应这款游戏独特的节奏。\n3. 强烈建议开启声音以完全沉浸在世界观中。"
-                        else: # Español
+                        else:
                             play_guide = f"1. Observa cómo se representa la palabra clave **'{user_keyword}'** en el juego.\n2. No temas al fracaso; adáptate al ritmo único de este juego.\n3. Se recomienda encarecidamente jugar con el sonido activado para sumergirte por completo."
                             
                         st.success(play_guide)
