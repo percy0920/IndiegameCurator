@@ -1,137 +1,115 @@
 import streamlit as st
 import requests
+import random
 
-st.set_page_config(page_title="Free Game Finder", page_icon="🎮", layout="centered")
+st.set_page_config(page_title="One Game Curator", page_icon="🎯", layout="centered")
 
-# --- 다국어 지원 딕셔너리 ---
-translations = {
-    "한국어": {
-        "title": "🎮 Free Game Finder",
-        "desc": "키워드와 장르를 선택해 지금 바로 무료로 즐길 수 있는 글로벌 PC/웹 게임을 찾아보세요. (API Key 불필요)",
-        "search_header": "🔍 게임 검색 조건 설정",
-        "keyword_label": "직접 키워드 입력 (예: 영문으로 space, hero, zombie 등)",
-        "genre_label": "장르",
-        "style_label": "테마 / 스타일",
-        "genres": ["전체", "MMORPG", "슈팅 (Shooter)", "전략 (Strategy)", "액션 RPG"],
-        "styles": ["전체", "도트/픽셀 (Pixel)", "판타지 (Fantasy)", "SF (Sci-Fi)", "애니메이션 (Anime)"],
-        "btn": "🚀 실시간 무료 게임 찾기",
-        "result_header": "🎯 실시간 검색 결과",
-        "no_result": "💡 조건과 일치하는 게임을 찾지 못했습니다. 다른 키워드나 장르로 시도해보세요!",
-        "found": "✨ 총 {}개의 게임을 찾았습니다!",
-        "ai_summary": "🤖 AI 큐레이터 요약 (게임 설명)",
-    },
-    "English": {
-        "title": "🎮 Free Game Finder",
-        "desc": "Find free-to-play PC/Web games instantly. No API key required.",
-        "search_header": "🔍 Search Conditions",
-        "keyword_label": "Custom Keyword (e.g., space, hero, zombie)",
-        "genre_label": "Genre",
-        "style_label": "Theme / Style",
-        "genres": ["All", "MMORPG", "Shooter", "Strategy", "Action RPG"],
-        "styles": ["All", "Pixel", "Fantasy", "Sci-Fi", "Anime"],
-        "btn": "🚀 Search Live Data",
-        "result_header": "🎯 Live Search Results",
-        "no_result": "💡 No exact match found. Try a different keyword!",
-        "found": "✨ Found {} games!",
-        "ai_summary": "🤖 AI Curator Summary",
-    }
-}
-
-# FreeToGame API 태그 매핑
-API_GENRES = ["", "mmorpg", "shooter", "strategy", "action-rpg"]
-API_STYLES = ["", "pixel", "fantasy", "sci-fi", "anime"]
-
-st.sidebar.header("🌐 Language")
-selected_lang = st.sidebar.selectbox("Choose Language", ["한국어", "English"])
-t = translations[selected_lang]
-
-st.title(t["title"])
-st.markdown(t["desc"])
+st.title("🎯 The One Game Curator")
+st.markdown("입력하신 키워드에 완벽하게 부합하는, 스팀 평가 **'복합적' 이상**의 게임 **단 하나**를 전문 비평가의 시선으로 큐레이팅해 드립니다.")
 st.markdown("---")
-st.subheader(t["search_header"])
 
-# 키워드 검색 (영문 API이므로 영문 검색을 유도)
-user_keyword = st.text_input(t["keyword_label"])
+# 검색어 입력
+st.subheader("🔍 당신의 취향을 알려주세요")
+user_tag = st.text_input("스팀 태그(키워드) 영문 입력 (예: Story Rich, Survival, Zombies, Pixel Graphics, Open World)")
 
-col1, col2 = st.columns(2)
-with col1:
-    genre_choice = st.selectbox(t["genre_label"], t["genres"])
-with col2:
-    style_choice = st.selectbox(t["style_label"], t["styles"])
+search_button = st.button("✨ 나만을 위한 단 하나의 게임 찾기", type="primary", use_container_width=True)
 
-search_button = st.button(t["btn"], type="primary", use_container_width=True)
+# 스팀 평가 등급 계산 함수 (긍정적 리뷰 비율에 따라)
+def get_steam_rating_text(ratio):
+    if ratio >= 0.95: return "압도적으로 긍정적"
+    elif ratio >= 0.80: return "매우 긍정적"
+    elif ratio >= 0.70: return "대체로 긍정적"
+    elif ratio >= 0.40: return "복합적"
+    else: return "부정적"
 
-# --- FreeToGame API 통신 로직 (API Key 불필요) ---
 if search_button:
-    st.markdown("---")
-    st.subheader(t["result_header"])
-    
-    with st.spinner("전 세계 무료 게임 데이터베이스를 뒤지고 있습니다..."):
+    if not user_tag.strip():
+        st.warning("키워드를 입력해주세요! (예: Cyberpunk, Cute, Horror)")
+    else:
+        st.markdown("---")
         
-        # 태그 결합을 위한 리스트 생성
-        tags = []
-        
-        genre_idx = t["genres"].index(genre_choice)
-        if API_GENRES[genre_idx]:
-            tags.append(API_GENRES[genre_idx])
+        with st.spinner("방대한 스팀 라이브러리에서 당신을 위한 단 하나의 게임을 발굴하고 비평을 작성 중입니다..."):
             
-        style_idx = t["styles"].index(style_choice)
-        if API_STYLES[style_idx]:
-            tags.append(API_STYLES[style_idx])
-        
-        # API URL 분기 처리
-        if len(tags) > 1:
-            # 태그가 2개 이상일 때 (filter 엔드포인트)
-            url = f"https://www.freetogame.com/api/filter?tag={'.'.join(tags)}"
-        elif len(tags) == 1:
-            # 태그가 1개일 때
-            url = f"https://www.freetogame.com/api/games?category={tags[0]}"
-        else:
-            # 전체 검색
-            url = "https://www.freetogame.com/api/games"
-
-        response = requests.get(url)
-        
-        if response.status_code == 200:
-            games_data = response.json()
+            # 1. SteamSpy API 호출
+            url = f"https://steamspy.com/api.php?request=tag&tag={user_tag.strip()}"
+            response = requests.get(url)
             
-            # API에서 에러 메시지(status 0)를 보낸 경우 처리
-            if isinstance(games_data, dict) and games_data.get("status") == 0:
-                games_data = []
+            if response.status_code == 200:
+                data = response.json()
+                games = list(data.values())
                 
-            # 유저 입력 키워드로 파이썬 내부에서 한번 더 필터링
-            if user_keyword.strip() and games_data:
-                keyword_lower = user_keyword.lower()
-                filtered_data = []
-                for game in games_data:
-                    if keyword_lower in game.get("title", "").lower() or keyword_lower in game.get("short_description", "").lower():
-                        filtered_data.append(game)
-                games_data = filtered_data
-            
-            # 결과가 너무 많으면 최대 10개까지만 표시
-            display_games = games_data[:10]
-            
-            if not display_games:
-                st.info(t["no_result"])
-            else:
-                st.success(t["found"].format(len(games_data)))
-                
-                for game in display_games:
-                    with st.container():
-                        col_img, col_info = st.columns([1, 2])
+                if not games:
+                    st.error(f"💡 '{user_tag}' 키워드에 해당하는 게임을 찾지 못했습니다. 스펠링을 확인하거나 다른 키워드를 시도해보세요.")
+                else:
+                    # 2. '복합적' 이상 필터링 로직 (긍정적 리뷰 40% 이상)
+                    filtered_games = []
+                    for game in games:
+                        pos = game.get('positive', 0)
+                        neg = game.get('negative', 0)
+                        total_reviews = pos + neg
                         
-                        with col_img:
-                            st.image(game.get("thumbnail"), use_column_width=True)
-                                
-                        with col_info:
-                            st.markdown(f"### **{game.get('title')}**")
-                            st.markdown(f"**플랫폼**: 💻 {game.get('platform')} | **장르**: 🏷️ {game.get('genre')}")
-                            
-                            # 바로가기 링크 제공
-                            st.markdown(f"[게임 웹사이트 바로가기]({game.get('game_url')})")
-                            
-                            st.info(f"**{t['ai_summary']}**\n\n{game.get('short_description')}")
-                            
+                        if total_reviews > 0:
+                            ratio = pos / total_reviews
+                            # ratio가 0.4 이상이면 '복합적' 이상의 평가를 받은 게임
+                            if ratio >= 0.40:
+                                game['ratio'] = ratio
+                                filtered_games.append(game)
+                    
+                    if not filtered_games:
+                        st.warning("조건(복합적 평가 이상)을 만족하는 게임이 없습니다.")
+                    else:
+                        # 3. 필터링된 게임 중 최상위권(인기도순 상위 20개) 중에서 무작위로 딱 1개 선택
+                        # (항상 똑같은 게임만 나오면 재미없으므로 약간의 무작위성 부여)
+                        top_candidates = filtered_games[:20]
+                        selected_game = random.choice(top_candidates)
+                        
+                        app_id = selected_game.get('appid')
+                        name = selected_game.get('name')
+                        ratio = selected_game.get('ratio')
+                        rating_text = get_steam_rating_text(ratio)
+                        
+                        st.subheader("🎯 큐레이터의 선택")
+                        
+                        # 게임 헤더 이미지
+                        img_url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/header.jpg"
+                        st.image(img_url, use_column_width=True)
+                        
+                        st.markdown(f"## **{name}**")
+                        
+                        # 기본 정보
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.write(f"**스팀 평가:** {rating_text} ({int(ratio*100)}%)")
+                        with col2:
+                            price = selected_game.get('price', '0')
+                            st.write(f"**가격:** {'무료' if str(price) == '0' else f'${int(price)/100:.2f}'}")
+                        with col3:
+                            st.markdown(f"[➡️ 스팀 상점 페이지로 이동](https://store.steampowered.com/app/{app_id})")
+                        
                         st.markdown("---")
-        else:
-            st.error(f"API 통신 오류가 발생했습니다. (상태 코드: {response.status_code})")
+                        
+                        # 4. 전문 비평가의 큐레이팅 및 플레이 가이드 (LLM 프롬프트 시뮬레이션)
+                        # 실제 기획서의 'AI Prompt' 항목에 들어갈 내용의 결과물입니다.
+                        st.markdown("### 🖋️ 전문 비평가의 큐레이팅 노트")
+                        
+                        critic_review = f"""
+                        **"{user_tag.capitalize()}"** 장르의 문법을 새롭게 정의하는 작품입니다. 
+                        
+                        **『{name}』**은(는) 단순히 스팀에서 **{rating_text}** 평가를 받은 것을 넘어, 이 키워드를 검색한 플레이어에게 가장 깊이 있는 경험을 선사할 수 있는 숨겨진 원석입니다. 이 게임이 가진 고유한 메커니즘과 아트워크의 조화는 타겟 장르의 한계를 뛰어넘는 몰입감을 제공합니다. 대중적인 찬사와 함께, 개발자가 의도한 섬세한 디테일들이 플레이어의 발걸음을 이끌 것입니다.
+                        """
+                        st.info(critic_review)
+                        
+                        st.markdown("### 🎮 큐레이터의 추천 플레이 가이드")
+                        
+                        play_guide = f"""
+                        이 게임의 진정한 재미를 끌어내기 위해 다음의 플레이 방식을 적극 권장합니다:
+                        
+                        1. **속도를 늦추고 세계에 동화되세요:** 이 게임은 목표를 향해 무작정 달려가는 것보다, 세계관 내에 배치된 오브젝트나 텍스트를 천천히 음미할 때 그 진가가 드러납니다.
+                        2. **실패를 내러티브의 일부로 받아들이기:** 진행 과정에서 마주하는 시행착오나 게임오버를 스트레스로 여기지 마세요. 이 게임에서 실패는 다음 챕터를 위한 훌륭한 튜토리얼입니다.
+                        3. **사운드 온(Sound-On) 필수:** 가능하다면 헤드폰을 착용하세요. 배경음악과 효과음이 게임의 분위기를 완성하는 핵심 요소입니다.
+                        """
+                        st.success(play_guide)
+                        
+                        st.markdown("<p style='text-align: right; color: gray; font-size: small;'>* 본 비평과 가이드는 게임 데이터를 기반으로 생성된 AI 큐레이팅 시뮬레이션입니다.</p>", unsafe_allow_html=True)
+            else:
+                st.error("API 서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
