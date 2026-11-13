@@ -4,7 +4,7 @@ import random
 import re
 
 # 1. 페이지 설정을 넓은 화면(wide)으로 변경하여 잉여 여백 제거
-st.set_page_config(page_title="Retro Game Curator", page_icon="🕹️", layout="wide")
+st.set_page_config(page_title="Retro Game Curator", page_icon="🕹️", layout="wide", initial_sidebar_state="expanded")
 
 # 2. 강력한 레트로 아케이드 네온 CSS 주입 (여백 제거, 네온 컬러, 글로우 효과)
 retro_css = """
