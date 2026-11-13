@@ -1,131 +1,137 @@
 import streamlit as st
 import requests
-import random
 
-# 페이지 설정
-st.set_page_config(
-    page_title="Indie Game Vibe Matcher",
-    page_icon="🎮",
-    layout="centered"
-)
+st.set_page_config(page_title="Free Game Finder", page_icon="🎮", layout="centered")
 
-# 타이틀 및 소개
-st.title("🎮 Indie Game Finder")
-st.markdown("원하는 장르, 플레이 방식, 그래픽 스타일을 선택하면 나에게 딱 맞는 인디 게임을 추천해 드립니다.")
-st.markdown("---")
-
-# 1. 필터 섹션 (사이드바 또는 메인 폼)
-st.subheader("🔍 게임 검색 조건 설정")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    genre_choice = st.selectbox(
-        "장르 (Genre)",
-        ["전체", "RPG", "Action", "Strategy", "Adventure", "Indie"]
-    )
-
-with col2:
-    play_choice = st.selectbox(
-        "플레이 방식",
-        ["전체", "멀티플레이 (Multiplayer)", "싱글플레이 (Singleplayer)"]
-    )
-
-with col3:
-    style_choice = st.selectbox(
-        "그래픽 스타일",
-        ["전체", "도트 / 픽셀 (Pixel Art)", "3D", "2D", "로파이 (Lo-Fi)"]
-    )
-
-# 검색 버튼
-search_button = st.button("🚀 내 취향 게임 찾기", type="primary", use_container_width=True)
-
-# 샘플 데이터 (API 키가 없거나 호출 실패 시 보여줄 백업 데이터)
-SAMPLE_GAMES = [
-    {
-        "name": "Barony",
-        "genres": ["RPG", "Action", "Indie"],
-        "tags": ["Pixel Art", "RPG", "Multiplayer", "Dungeon Crawler"],
-        "rating": 4.5,
-        "description": "고전 도트 그래픽 기반의 1인칭 로그라이크 RPG로, 최대 4인 온라인 멀티플레이를 지원합니다. 친구들과 함께 던전을 탐험하며 함정을 피하고 협동 플레이를 즐기기에 최적화되어 있습니다.",
-        "image": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80"
+# --- 다국어 지원 딕셔너리 ---
+translations = {
+    "한국어": {
+        "title": "🎮 Free Game Finder",
+        "desc": "키워드와 장르를 선택해 지금 바로 무료로 즐길 수 있는 글로벌 PC/웹 게임을 찾아보세요. (API Key 불필요)",
+        "search_header": "🔍 게임 검색 조건 설정",
+        "keyword_label": "직접 키워드 입력 (예: 영문으로 space, hero, zombie 등)",
+        "genre_label": "장르",
+        "style_label": "테마 / 스타일",
+        "genres": ["전체", "MMORPG", "슈팅 (Shooter)", "전략 (Strategy)", "액션 RPG"],
+        "styles": ["전체", "도트/픽셀 (Pixel)", "판타지 (Fantasy)", "SF (Sci-Fi)", "애니메이션 (Anime)"],
+        "btn": "🚀 실시간 무료 게임 찾기",
+        "result_header": "🎯 실시간 검색 결과",
+        "no_result": "💡 조건과 일치하는 게임을 찾지 못했습니다. 다른 키워드나 장르로 시도해보세요!",
+        "found": "✨ 총 {}개의 게임을 찾았습니다!",
+        "ai_summary": "🤖 AI 큐레이터 요약 (게임 설명)",
     },
-    {
-        "name": "Stardew Valley",
-        "genres": ["Indie", "Simulation", "RPG"],
-        "tags": ["Pixel Art", "Multiplayer", "Simulation", "Relaxing"],
-        "rating": 4.9,
-        "description": "할아버지의 오래된 농장 부지를 물려받아 진행하는 오픈에어 농장 경영 RPG입니다. 도트 그래픽의 따뜻한 감성과 최대 4인 멀티플레이를 지원하여 친구들과 함께 농장을 가꿀 수 있습니다.",
-        "image": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80"
-    },
-    {
-        "name": "Dead Cells",
-        "genres": ["Action", "Indie"],
-        "tags": ["Pixel Art", "Action", "Singleplayer", "Roguelike"],
-        "rating": 4.8,
-        "description": "로그배니아 스타일의 빠른 액션 플랫포머 게임입니다. 정교한 픽셀 아트와 긴장감 넘치는 전투 시스템이 특징이며, 몰입도 높은 싱글플레이 경험을 제공합니다.",
-        "image": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80"
-    },
-    {
-        "name": "Terraria",
-        "genres": ["Adventure", "Action", "Indie"],
-        "tags": ["Pixel Art", "Multiplayer", "Sandbox", "Adventure"],
-        "rating": 4.7,
-        "description": "파고, 싸우고, 탐험하고, 건설하세요! 무엇이든 가능성인 세상에서 도트 그래픽으로 구현된 방대한 세계를 친구들과 함께 멀티플레이로 탐험하는 샌드박스 게임입니다.",
-        "image": "https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=600&q=80"
+    "English": {
+        "title": "🎮 Free Game Finder",
+        "desc": "Find free-to-play PC/Web games instantly. No API key required.",
+        "search_header": "🔍 Search Conditions",
+        "keyword_label": "Custom Keyword (e.g., space, hero, zombie)",
+        "genre_label": "Genre",
+        "style_label": "Theme / Style",
+        "genres": ["All", "MMORPG", "Shooter", "Strategy", "Action RPG"],
+        "styles": ["All", "Pixel", "Fantasy", "Sci-Fi", "Anime"],
+        "btn": "🚀 Search Live Data",
+        "result_header": "🎯 Live Search Results",
+        "no_result": "💡 No exact match found. Try a different keyword!",
+        "found": "✨ Found {} games!",
+        "ai_summary": "🤖 AI Curator Summary",
     }
-]
+}
 
-# 2. 결과 출력 로직
+# FreeToGame API 태그 매핑
+API_GENRES = ["", "mmorpg", "shooter", "strategy", "action-rpg"]
+API_STYLES = ["", "pixel", "fantasy", "sci-fi", "anime"]
+
+st.sidebar.header("🌐 Language")
+selected_lang = st.sidebar.selectbox("Choose Language", ["한국어", "English"])
+t = translations[selected_lang]
+
+st.title(t["title"])
+st.markdown(t["desc"])
+st.markdown("---")
+st.subheader(t["search_header"])
+
+# 키워드 검색 (영문 API이므로 영문 검색을 유도)
+user_keyword = st.text_input(t["keyword_label"])
+
+col1, col2 = st.columns(2)
+with col1:
+    genre_choice = st.selectbox(t["genre_label"], t["genres"])
+with col2:
+    style_choice = st.selectbox(t["style_label"], t["styles"])
+
+search_button = st.button(t["btn"], type="primary", use_container_width=True)
+
+# --- FreeToGame API 통신 로직 (API Key 불필요) ---
 if search_button:
     st.markdown("---")
-    st.subheader("🎯 추천 결과")
+    st.subheader(t["result_header"])
     
-    # 필터 조건 매칭 시뮬레이션 (데모용 필터링)
-    filtered_games = []
-    for game in SAMPLE_GAMES:
-        match = True
-        if genre_choice != "전체" and genre_choice not in game["genres"]:
-            match = False
-        if "멀티" in play_choice and "Multiplayer" not in game["tags"]:
-            match = False
-        if "싱글" in play_choice and "Singleplayer" not in game["tags"]:
-            match = False
-        if "도트" in style_choice and "Pixel Art" not in game["tags"]:
-            match = False
+    with st.spinner("전 세계 무료 게임 데이터베이스를 뒤지고 있습니다..."):
+        
+        # 태그 결합을 위한 리스트 생성
+        tags = []
+        
+        genre_idx = t["genres"].index(genre_choice)
+        if API_GENRES[genre_idx]:
+            tags.append(API_GENRES[genre_idx])
             
-        if match:
-            filtered_games.append(game)
-            
-    # 조건에 정확히 일치하는 결과가 없으면 전체 샘플 중 무작위 혹은 근접 결과 출력 (Edge Case Handling)
-    if not filtered_games:
-        st.info("💡 선택하신 조건과 정확히 일치하는 게임이 없어, 가장 인기 있는 인디 게임들을 대신 추천해 드립니다!")
-        filtered_games = SAMPLE_GAMES[:2]
-    else:
-        st.success(f"✨ 총 {len(filtered_games)}개의 어울리는 게임을 찾았습니다!")
+        style_idx = t["styles"].index(style_choice)
+        if API_STYLES[style_idx]:
+            tags.append(API_STYLES[style_idx])
+        
+        # API URL 분기 처리
+        if len(tags) > 1:
+            # 태그가 2개 이상일 때 (filter 엔드포인트)
+            url = f"https://www.freetogame.com/api/filter?tag={'.'.join(tags)}"
+        elif len(tags) == 1:
+            # 태그가 1개일 때
+            url = f"https://www.freetogame.com/api/games?category={tags[0]}"
+        else:
+            # 전체 검색
+            url = "https://www.freetogame.com/api/games"
 
-    # 카드 그리드 형태로 결과 출력
-    for game in filtered_games:
-        with st.container():
-            col_img, col_info = st.columns([1, 2])
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            games_data = response.json()
             
-            with col_img:
-                st.image(game["image"], use_column_width=True)
+            # API에서 에러 메시지(status 0)를 보낸 경우 처리
+            if isinstance(games_data, dict) and games_data.get("status") == 0:
+                games_data = []
                 
-            with col_info:
-                st.markdown(f"### **{game['name']}** (평점: ⭐ {game['rating']})")
+            # 유저 입력 키워드로 파이썬 내부에서 한번 더 필터링
+            if user_keyword.strip() and games_data:
+                keyword_lower = user_keyword.lower()
+                filtered_data = []
+                for game in games_data:
+                    if keyword_lower in game.get("title", "").lower() or keyword_lower in game.get("short_description", "").lower():
+                        filtered_data.append(game)
+                games_data = filtered_data
+            
+            # 결과가 너무 많으면 최대 10개까지만 표시
+            display_games = games_data[:10]
+            
+            if not display_games:
+                st.info(t["no_result"])
+            else:
+                st.success(t["found"].format(len(games_data)))
                 
-                # 태그 뱃지 표시
-                tag_markdown = " ".join([f"`{tag}`" for tag in game["tags"]])
-                st.markdown(f"**태그**: {tag_markdown}")
-                
-                # AI 요약 박스 시뮬레이션
-                st.info(f"🤖 **AI 큐레이터 요약**\n\n{game['description']}")
-                
-            st.markdown("---")
-
-# 하단 푸터
-st.markdown(
-    "<p style='text-align: center; color: gray;'>Powered by RAWG API & Streamlit | Indie Game Vibe Matcher Demo</p>", 
-    unsafe_allow_html=True
-)
+                for game in display_games:
+                    with st.container():
+                        col_img, col_info = st.columns([1, 2])
+                        
+                        with col_img:
+                            st.image(game.get("thumbnail"), use_column_width=True)
+                                
+                        with col_info:
+                            st.markdown(f"### **{game.get('title')}**")
+                            st.markdown(f"**플랫폼**: 💻 {game.get('platform')} | **장르**: 🏷️ {game.get('genre')}")
+                            
+                            # 바로가기 링크 제공
+                            st.markdown(f"[게임 웹사이트 바로가기]({game.get('game_url')})")
+                            
+                            st.info(f"**{t['ai_summary']}**\n\n{game.get('short_description')}")
+                            
+                        st.markdown("---")
+        else:
+            st.error(f"API 통신 오류가 발생했습니다. (상태 코드: {response.status_code})")
