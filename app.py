@@ -3,49 +3,150 @@ import requests
 import random
 import re
 
-st.set_page_config(page_title="One Game Curator", page_icon="🎯", layout="centered")
+# 1. 페이지 설정 (넓게 보기, 제목 설정)
+st.set_page_config(page_title="Retro Game Curator", page_icon="🕹️", layout="centered")
 
-st.title("🎯 The One Game Curator")
-st.markdown("입력하신 키워드가 **실제 게임 소개글이나 태그에 정확히 포함된**, 평가 **'복합적' 이상**의 게임 **단 하나**를 엄선하여 큐레이팅해 드립니다.")
+# 2. 레트로 비디오 게임 CSS 스타일 주입
+retro_css = """
+<style>
+/* 레트로 한글 폰트 (둥근모꼴) 및 영문 픽셀 폰트 불러오기 */
+@import url('https://cdn.jsdelivr.net/gh/neodgm/neodgm-web-font@1.530/neodgm/style.css');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* 전체 폰트 및 배경색 적용 */
+html, body, [class*="css"] {
+    font-family: 'NeoDunggeunmo', 'Press Start 2P', monospace !important;
+    background-color: #111111 !important;
+    color: #33FF33 !important; /* 네온 그린 텍스트 */
+}
+
+/* 텍스트 인풋 박스 스타일 */
+.stTextInput > div > div > input {
+    background-color: #000000 !important;
+    color: #33FF33 !important;
+    border: 4px solid #33FF33 !important;
+    border-radius: 0px !important;
+    font-size: 18px !important;
+}
+
+/* 버튼 스타일 */
+.stButton > button {
+    background-color: #000000 !important;
+    color: #FF0055 !important; /* 네온 핑크 */
+    border: 4px solid #FF0055 !important;
+    border-radius: 0px !important;
+    font-size: 20px !important;
+    transition: 0.2s;
+}
+.stButton > button:hover {
+    background-color: #FF0055 !important;
+    color: #FFFFFF !important;
+    border: 4px solid #FFFFFF !important;
+}
+
+/* 정보 박스(비평가 노트 등) 스타일 */
+.stAlert {
+    background-color: #000000 !important;
+    color: #00FFFF !important; /* 사이안 */
+    border: 4px solid #00FFFF !important;
+    border-radius: 0px !important;
+}
+.stSuccess {
+    background-color: #000000 !important;
+    color: #FFFF00 !important; /* 옐로우 */
+    border: 4px solid #FFFF00 !important;
+    border-radius: 0px !important;
+}
+</style>
+"""
+st.markdown(retro_css, unsafe_allow_html=True)
+
+# 3. 중복 추천 방지를 위한 세션 상태(Session State) 초기화
+if "shown_games" not in st.session_state:
+    st.session_state.shown_games = []
+
+# 4. 다국어 지원 딕셔너리
+translations = {
+    "한국어": {
+        "title": "🕹️ THE ONE GAME CURATOR",
+        "desc": "INSERT COIN... 당신의 취향을 입력하면 완벽한 게임 단 1개를 엄선해 드립니다.",
+        "search_label": "> 키워드를 입력하세요 (예: 좀비, 생존, RPG)",
+        "btn": "▶ START Curation",
+        "lang_code": "korean",
+        "loading": "데이터베이스 탐색 중... (최대 10초 소요)",
+        "no_result": "GAME OVER. 일치하는 새로운 게임이 없습니다. 다른 키워드를 입력하세요.",
+        "found": "STAGE CLEAR! 완벽한 게임을 찾았습니다.",
+        "critic_title": "🖋️ 비평가의 큐레이팅 노트",
+        "guide_title": "🎮 큐레이터의 추천 플레이 가이드",
+        "steam_link": "[스팀 상점 접속하기]"
+    },
+    "English": {
+        "title": "🕹️ THE ONE GAME CURATOR",
+        "desc": "INSERT COIN... Enter your taste to get exactly ONE perfect game.",
+        "search_label": "> Enter keyword (e.g. Zombie, Survival, RPG)",
+        "btn": "▶ START Curation",
+        "lang_code": "english",
+        "loading": "Scanning Database... (Takes up to 10s)",
+        "no_result": "GAME OVER. No new matching games found. Try a different keyword.",
+        "found": "STAGE CLEAR! Perfect game selected.",
+        "critic_title": "🖋️ Critic's Curation Note",
+        "guide_title": "🎮 Recommended Play Guide",
+        "steam_link": "[Go to Steam Store]"
+    }
+}
+
+# 사이드바 언어 선택
+st.sidebar.markdown("### 🌐 SELECT LANGUAGE")
+selected_lang = st.sidebar.radio("", ["한국어", "English"])
+t = translations[selected_lang]
+
+# 5. 메인 화면 UI 구성
+st.title(t["title"])
+st.markdown(f"**{t['desc']}**")
 st.markdown("---")
 
-st.subheader("🔍 당신의 취향을 알려주세요")
-user_keyword = st.text_input("검색 키워드 (예: 좀비, 농사, Cyberpunk, 오픈월드, 생존)")
+user_keyword = st.text_input(t["search_label"])
+search_button = st.button(t["btn"], use_container_width=True)
 
-search_button = st.button("✨ 나만을 위한 단 하나의 게임 찾기", type="primary", use_container_width=True)
+# 평점 텍스트 변환기
+def get_steam_rating_text(ratio, lang):
+    if lang == "한국어":
+        if ratio >= 0.95: return "압도적으로 긍정적"
+        elif ratio >= 0.80: return "매우 긍정적"
+        elif ratio >= 0.70: return "대체로 긍정적"
+        elif ratio >= 0.40: return "복합적"
+        else: return "부정적"
+    else:
+        if ratio >= 0.95: return "Overwhelmingly Positive"
+        elif ratio >= 0.80: return "Very Positive"
+        elif ratio >= 0.70: return "Mostly Positive"
+        elif ratio >= 0.40: return "Mixed"
+        else: return "Negative"
 
-def get_steam_rating_text(ratio):
-    if ratio >= 0.95: return "압도적으로 긍정적"
-    elif ratio >= 0.80: return "매우 긍정적"
-    elif ratio >= 0.70: return "대체로 긍정적"
-    elif ratio >= 0.40: return "복합적"
-    else: return "부정적"
-
-# HTML 태그 제거용 함수
+# HTML 태그 제거 함수
 def clean_html(raw_html):
     cleanr = re.compile('<.*?>')
     return re.sub(cleanr, '', raw_html).replace('&quot;', "'")
 
+# 6. 검색 로직 (중복 방지 및 교차 검증)
 if search_button:
     if not user_keyword.strip():
-        st.warning("키워드를 입력해주세요!")
+        st.warning("PLEASE ENTER KEYWORD!")
     else:
-        st.markdown("---")
-        
-        with st.spinner("수만 개의 스팀 게임 소개글과 평가를 분석하며 당신을 위한 단 하나의 게임을 찾는 중입니다... (최대 10~15초 소요)"):
-            
+        with st.spinner(t["loading"]):
             keyword_lower = user_keyword.strip().lower()
+            steam_lang = t["lang_code"]
             
-            # 1. 스팀 상점 API로 1차 검색 (관련도 순)
-            store_search_url = f"https://store.steampowered.com/api/storesearch/?term={keyword_lower}&l=korean&cc=KR"
+            # 스팀 검색 API 호출
+            store_search_url = f"https://store.steampowered.com/api/storesearch/?term={keyword_lower}&l={steam_lang}&cc=KR"
             search_res = requests.get(store_search_url)
             
             if search_res.status_code == 200:
                 search_data = search_res.json()
                 items = search_data.get('items', [])
                 
-                # 매번 똑같은 게임만 나오지 않도록 상위 10개 결과의 순서를 섞음
-                candidates = items[:10]
+                # 순서 무작위 셔플
+                candidates = items[:15]
                 random.shuffle(candidates)
                 
                 selected_game = None
@@ -53,12 +154,15 @@ if search_button:
                 game_description = ""
                 game_tags = []
                 
-                # 2. 1차 검색된 게임들을 하나씩 까보며 '엄격한 교차 검증' 진행
                 for item in candidates:
                     appid = item.get('id')
                     name = item.get('name', '')
                     
-                    # 2-1. SteamSpy API로 평가 점수 및 유저 태그 확인
+                    # [중복 방지 로직] 이미 추천했던 게임이면 패스!
+                    if appid in st.session_state.shown_games:
+                        continue
+                        
+                    # SteamSpy 평가 및 태그 확인
                     spy_res = requests.get(f"https://steamspy.com/api.php?request=appdetails&appid={appid}")
                     if spy_res.status_code != 200: continue
                     spy_data = spy_res.json()
@@ -68,14 +172,12 @@ if search_button:
                     total_reviews = pos + neg
                     
                     if total_reviews == 0: continue
-                    
                     ratio = pos / total_reviews
                     
-                    # [조건 A] 스팀 평가가 '복합적'(40%) 미만이면 가차 없이 탈락
-                    if ratio < 0.40: continue
+                    if ratio < 0.40: continue # '복합적' 미만 탈락
                     
-                    # 2-2. Steam 상점 세부 API로 공식 소개글 확인
-                    details_res = requests.get(f"https://store.steampowered.com/api/appdetails?appids={appid}&l=korean")
+                    # 공식 소개글 확인
+                    details_res = requests.get(f"https://store.steampowered.com/api/appdetails?appids={appid}&l={steam_lang}")
                     if details_res.status_code != 200: continue
                     details_data = details_res.json()
                     
@@ -86,75 +188,61 @@ if search_button:
                     short_desc = clean_html(app_info.get('short_description', ''))
                     tags_dict = spy_data.get('tags', {})
                     
-                    # [조건 B] 키워드가 '공식 소개글', '게임 이름', '유저 태그' 중 하나라도 정확히 포함되어 있는지 검증
+                    # 키워드 교차 검증 (소개글, 제목, 태그 중 하나라도 일치하면 OK)
                     match_in_desc = keyword_lower in short_desc.lower()
                     match_in_name = keyword_lower in name.lower()
                     match_in_tags = any(keyword_lower in tag.lower() for tag in tags_dict.keys())
                     
                     if match_in_desc or match_in_name or match_in_tags:
-                        # 모든 까다로운 조건을 통과한 게임 당첨!
                         selected_game = app_info
                         game_ratio = ratio
                         game_description = short_desc
                         game_tags = list(tags_dict.keys())[:3]
-                        break # 단 하나만 찾으면 되므로 루프 종료
+                        
+                        # 당첨된 게임의 ID를 세션에 저장하여 다음 번엔 안 나오게 함
+                        st.session_state.shown_games.append(appid)
+                        break 
                 
-                # 3. 결과 출력
+                # 결과 출력 UI
                 if not selected_game:
-                    st.error(f"💡 '{user_keyword}' 키워드가 소개글이나 태그에 정확히 포함되면서, 평가가 '복합적' 이상인 게임을 찾지 못했습니다. 키워드를 조금 더 단순하게(예: 생존, RPG) 바꿔보세요.")
+                    st.error(t["no_result"])
                 else:
                     appid = selected_game.get('steam_appid')
                     name = selected_game.get('name')
-                    rating_text = get_steam_rating_text(game_ratio)
+                    rating_text = get_steam_rating_text(game_ratio, selected_lang)
                     
-                    st.success("✨ 엄격한 검증을 통과한 완벽한 게임을 찾았습니다!")
-                    st.subheader("🎯 큐레이터의 선택")
+                    st.markdown("---")
+                    st.markdown(f"### {t['found']}")
                     
-                    # 게임 헤더 이미지
+                    # 게임 이미지
                     img_url = selected_game.get('header_image', f"https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/header.jpg")
                     st.image(img_url, use_column_width=True)
                     
-                    st.markdown(f"## **{name}**")
+                    st.markdown(f"## [{name}]")
                     
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.write(f"**스팀 평가:** {rating_text} ({int(game_ratio*100)}%)")
-                    with col2:
-                        price_data = selected_game.get('price_overview', {})
-                        price_text = price_data.get('final_formatted', '무료 (Free)') if price_data else "무료 (Free)"
-                        st.write(f"**가격:** {price_text}")
-                    with col3:
-                        st.markdown(f"[➡️ 스팀 상점 페이지로 이동](https://store.steampowered.com/app/{appid})")
+                    st.write(f"▶ RATING: {rating_text} ({int(game_ratio*100)}%)")
+                    st.markdown(f"▶ {t['steam_link']}(https://store.steampowered.com/app/{appid})")
                     
-                    st.markdown("---")
+                    st.markdown("<br>", unsafe_allow_html=True)
                     
-                    # 4. 전문 비평가 큐레이팅 및 추천 플레이 가이드 (동적 생성)
-                    st.markdown("### 🖋️ 전문 비평가의 큐레이팅 노트")
-                    
-                    # AI가 작성한 것처럼 실제 데이터를 녹여내어 비평 작성
+                    # 큐레이팅 노트 (Alert 스타일)
+                    st.markdown(f"#### {t['critic_title']}")
                     tag_str = ", ".join(game_tags) if game_tags else "독창적인"
-                    critic_review = f"""
-                    **"{user_keyword}"**의 감성을 이토록 훌륭하게 엮어낸 작품이 또 있을까요? 
                     
-                    **『{name}』**은(는) {tag_str} 장르의 문법을 따르면서도, 플레이어에게 강렬한 인상을 남깁니다. 스팀에서 **{rating_text}** 평가를 받은 것은 우연이 아닙니다. 
+                    if selected_lang == "한국어":
+                        critic_review = f"**'{user_keyword}'**의 매력을 완벽하게 담아낸 수작입니다. 스팀 평가 **{rating_text}**는 결코 거짓말을 하지 않습니다.\n\n*{game_description[:100]}...*\n\n이 텍스트가 증명하듯, {tag_str} 요소를 엮어낸 이 게임은 당신이 찾던 바로 그 몰입감을 선사할 것입니다."
+                    else:
+                        critic_review = f"A masterpiece that perfectly captures the essence of **'{user_keyword}'**. The **{rating_text}** rating on Steam is well-deserved.\n\n*{game_description[:100]}...*\n\nWith its {tag_str} elements, this game will provide exactly the immersive experience you are looking for."
                     
-                    *{game_description[:150]}...* 
-                    
-                    이 게임이 제시하는 세계관과 독보적인 분위기는 당신이 찾던 바로 그 경험을 충족시키기에 충분한 숨겨진 명작입니다.
-                    """
                     st.info(critic_review)
                     
-                    st.markdown("### 🎮 큐레이터의 추천 플레이 가이드")
-                    
-                    play_guide = f"""
-                    이 게임의 진면목을 100% 즐기기 위해 비평가가 제안하는 3가지 방법론입니다.
-                    
-                    1. **키워드의 본질에 집중하세요:** 당신이 검색한 **'{user_keyword}'** 요소가 게임 내에서 어떻게 변주되는지 관찰하며 플레이해보세요. 개발자의 깊은 의도를 엿볼 수 있습니다.
-                    2. **메커니즘에 몸을 맡기기:** 처음에는 낯설 수 있지만, {game_tags[0] if game_tags else '이 게임 특유의'} 시스템이 요구하는 템포에 익숙해지면 엄청난 몰입감을 선사합니다.
-                    3. **공식 소개글의 행간 읽기:** 텍스트와 내러티브를 가볍게 넘기지 마세요. 사소해 보이는 디테일들이 모여 압도적인 후반부 경험을 만들어냅니다.
-                    """
+                    # 플레이 가이드 (Success 스타일)
+                    st.markdown(f"#### {t['guide_title']}")
+                    if selected_lang == "한국어":
+                        play_guide = f"1. **'{user_keyword}'** 키워드가 게임 속에서 어떻게 표현되었는지 관찰하세요.\n2. 실패를 두려워하지 말고 이 게임만의 템포에 몸을 맡겨보세요.\n3. 사운드를 꼭 켜고 세계관에 동화되는 것을 추천합니다."
+                    else:
+                        play_guide = f"1. Observe how the keyword **'{user_keyword}'** is represented in the game.\n2. Don't fear failure; adapt to the unique tempo of this game.\n3. Highly recommended to play with the sound ON to fully immerse yourself."
+                        
                     st.success(play_guide)
-                    
-                    st.markdown("<p style='text-align: right; color: gray; font-size: small;'>* 본 비평과 가이드는 실제 게임 API 데이터를 기반으로 생성된 큐레이팅 시뮬레이션입니다.</p>", unsafe_allow_html=True)
             else:
-                st.error("스팀 서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
+                st.error("NETWORK ERROR. Please try again.")
