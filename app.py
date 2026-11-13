@@ -125,7 +125,7 @@ st.markdown(retro_css, unsafe_allow_html=True)
 if "shown_games" not in st.session_state:
     st.session_state.shown_games = []
 
-# 4. 다국어 지원
+# 4. 다국어 지원 딕셔너리 확장
 translations = {
     "한국어": {
         "title": "🕹️ THE ONE GAME CURATOR",
@@ -134,11 +134,13 @@ translations = {
         "btn": "▶ START Curation",
         "lang_code": "korean",
         "loading": "데이터베이스 탐색 중... (최대 10초 소요)",
-        "no_result": "GAME OVER. 일치하는 새로운 게임이 없습니다. 다른 키워드를 입력하세요.",
+        "no_result": "GAME OVER. 일치하는 새로운 게임이 없습니다. 다른 키워드나 기준을 설정하세요.",
         "found": "STAGE CLEAR! 완벽한 게임을 찾았습니다.",
         "critic_title": "🖋️ 비평가의 큐레이팅 노트",
         "guide_title": "🎮 추천 플레이 가이드",
-        "steam_link": "[스팀 상점 접속하기]"
+        "steam_link": "[스팀 상점 접속하기]",
+        "rating_label": "평가 필터 기준",
+        "ratings": {"모든 평가 (0%+)": 0.0, "복합적 이상 (40%+)": 0.4, "대체로 긍정적 이상 (70%+)": 0.7, "매우 긍정적 이상 (80%+)": 0.8, "압도적으로 긍정적 (95%+)": 0.95}
     },
     "English": {
         "title": "🕹️ THE ONE GAME CURATOR",
@@ -151,37 +153,91 @@ translations = {
         "found": "STAGE CLEAR! Perfect game selected.",
         "critic_title": "🖋️ Critic's Note",
         "guide_title": "🎮 Play Guide",
-        "steam_link": "[Go to Steam Store]"
+        "steam_link": "[Go to Steam Store]",
+        "rating_label": "Minimum Rating",
+        "ratings": {"All Ratings (0%+)": 0.0, "Mixed+ (40%+)": 0.4, "Mostly Positive+ (70%+)": 0.7, "Very Positive+ (80%+)": 0.8, "Overwhelmingly Positive (95%+)": 0.95}
+    },
+    "日本語": {
+        "title": "🕹️ THE ONE GAME CURATOR",
+        "desc": "INSERT COIN... あなたの好みを入力すると、完璧なゲームを1つ厳選します。",
+        "search_label": "⬇️ キーワードを入力 (例: ゾンビ, サバイバル, RPG)",
+        "btn": "▶ START Curation",
+        "lang_code": "japanese",
+        "loading": "データベースを検索中... (最大10秒)",
+        "no_result": "GAME OVER. 一致するゲームがありません。別のキーワードをお試しください。",
+        "found": "STAGE CLEAR! 完璧なゲームを見つけました。",
+        "critic_title": "🖋️ 批評家のキュレーションノート",
+        "guide_title": "🎮 おすすめプレイガイド",
+        "steam_link": "[Steamストアへ]",
+        "rating_label": "最低評価基準",
+        "ratings": {"すべての評価 (0%+)": 0.0, "賛否両論以上 (40%+)": 0.4, "やや好評以上 (70%+)": 0.7, "非常に好評以上 (80%+)": 0.8, "圧倒的に好評 (95%+)": 0.95}
+    },
+    "中文": {
+        "title": "🕹️ THE ONE GAME CURATOR",
+        "desc": "INSERT COIN... 输入您的喜好，为您精选一款完美的游戏。",
+        "search_label": "⬇️ 输入关键字 (例: 丧尸, 生存, RPG)",
+        "btn": "▶ START Curation",
+        "lang_code": "schinese",
+        "loading": "正在搜索数据库... (最多10秒)",
+        "no_result": "GAME OVER. 没有找到匹配的新游戏。请尝试其他关键字。",
+        "found": "STAGE CLEAR! 找到了完美的游戏。",
+        "critic_title": "🖋️ 评论家的策展笔记",
+        "guide_title": "🎮 推荐游玩指南",
+        "steam_link": "[前往Steam商店]",
+        "rating_label": "最低评价标准",
+        "ratings": {"所有评价 (0%+)": 0.0, "褒贬不一及以上 (40%+)": 0.4, "多半好评及以上 (70%+)": 0.7, "特别好评及以上 (80%+)": 0.8, "好评如潮 (95%+)": 0.95}
+    },
+    "Español": {
+        "title": "🕹️ THE ONE GAME CURATOR",
+        "desc": "INSERT COIN... Ingresa tus gustos para obtener UN juego perfecto.",
+        "search_label": "⬇️ Ingresa palabra clave (ej. Zombie, RPG)",
+        "btn": "▶ START Curation",
+        "lang_code": "spanish",
+        "loading": "Buscando en la base de datos... (Hasta 10s)",
+        "no_result": "GAME OVER. No se encontraron juegos nuevos. Intenta otra vez.",
+        "found": "STAGE CLEAR! Juego perfecto seleccionado.",
+        "critic_title": "🖋️ Nota del Crítico",
+        "guide_title": "🎮 Guía de Juego",
+        "steam_link": "[Ir a la tienda de Steam]",
+        "rating_label": "Calificación Mínima",
+        "ratings": {"Todas (0%+)": 0.0, "Variadas+ (40%+)": 0.4, "Mayormente Positivas+ (70%+)": 0.7, "Muy Positivas+ (80%+)": 0.8, "Extremadamente Positivas (95%+)": 0.95}
     }
 }
 
+# 사이드바 언어 선택
 st.sidebar.markdown("### 🌐 SELECT LANGUAGE")
-selected_lang = st.sidebar.radio("", ["한국어", "English"])
+selected_lang = st.sidebar.radio("", ["한국어", "English", "日本語", "中文", "Español"])
 t = translations[selected_lang]
+
+# 사이드바 스팀 평가 필터 선택 추가
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"### ⭐ {t['rating_label']}")
+rating_options = list(t['ratings'].keys())
+# 기본값으로 '복합적 이상'(인덱스 1) 설정
+selected_rating_label = st.sidebar.selectbox("", rating_options, index=1)
+min_rating_threshold = t['ratings'][selected_rating_label]
 
 # 5. UI 본문
 st.title(t["title"])
 st.markdown(f"<p style='text-align: center;'><b>{t['desc']}</b></p>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns([1, 2, 1]) # 가운데 정렬을 위한 꼼수 레이아웃
+col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     user_keyword = st.text_input(t["search_label"])
     search_button = st.button(t["btn"], use_container_width=True)
 
 def get_steam_rating_text(ratio, lang):
-    if lang == "한국어":
-        if ratio >= 0.95: return "압도적으로 긍정적"
-        elif ratio >= 0.80: return "매우 긍정적"
-        elif ratio >= 0.70: return "대체로 긍정적"
-        elif ratio >= 0.40: return "복합적"
-        else: return "부정적"
+    if ratio >= 0.95:
+        return {"한국어": "압도적으로 긍정적", "English": "Overwhelmingly Positive", "日本語": "圧倒的に好評", "中文": "好评如潮", "Español": "Extremadamente Positivas"}[lang]
+    elif ratio >= 0.80:
+        return {"한국어": "매우 긍정적", "English": "Very Positive", "日本語": "非常に好評", "中文": "特别好评", "Español": "Muy Positivas"}[lang]
+    elif ratio >= 0.70:
+        return {"한국어": "대체로 긍정적", "English": "Mostly Positive", "日本語": "やや好評", "中文": "多半好评", "Español": "Mayormente Positivas"}[lang]
+    elif ratio >= 0.40:
+        return {"한국어": "복합적", "English": "Mixed", "日本語": "賛否両論", "中文": "褒贬不一", "Español": "Variadas"}[lang]
     else:
-        if ratio >= 0.95: return "Overwhelmingly Positive"
-        elif ratio >= 0.80: return "Very Positive"
-        elif ratio >= 0.70: return "Mostly Positive"
-        elif ratio >= 0.40: return "Mixed"
-        else: return "Negative"
+        return {"한국어": "부정적", "English": "Negative", "日本語": "不評", "中文": "差评", "Español": "Negativas"}[lang]
 
 def clean_html(raw_html):
     cleanr = re.compile('<.*?>')
@@ -229,7 +285,8 @@ if search_button:
                     if total_reviews == 0: continue
                     ratio = pos / total_reviews
                     
-                    if ratio < 0.40: continue 
+                    # 🎯 유저가 사이드바에서 선택한 평가 기준(min_rating_threshold) 반영
+                    if ratio < min_rating_threshold: continue 
                     
                     details_res = requests.get(f"https://store.steampowered.com/api/appdetails?appids={appid}&l={steam_lang}")
                     if details_res.status_code != 200: continue
@@ -265,7 +322,6 @@ if search_button:
                     st.markdown("---")
                     st.markdown(f"### {t['found']}")
                     
-                    # 결과를 보기 좋게 좌우 분할
                     res_col1, res_col2 = st.columns([1, 1])
                     
                     with res_col1:
@@ -277,19 +333,36 @@ if search_button:
                         
                     with res_col2:
                         st.markdown(f"#### {t['critic_title']}")
-                        tag_str = ", ".join(game_tags) if game_tags else "독창적인"
+                        tag_str = ", ".join(game_tags) if game_tags else "독창적인(Original)"
                         
+                        # 다국어 큐레이팅 노트 생성
                         if selected_lang == "한국어":
                             critic_review = f"**'{user_keyword}'**의 매력을 완벽하게 담아낸 수작입니다. 스팀 평가 **{rating_text}**는 결코 거짓말을 하지 않습니다.\n\n*{game_description[:100]}...*\n\n이 텍스트가 증명하듯, {tag_str} 요소를 엮어낸 이 게임은 당신이 찾던 바로 그 몰입감을 선사할 것입니다."
-                        else:
+                        elif selected_lang == "English":
                             critic_review = f"A masterpiece that perfectly captures the essence of **'{user_keyword}'**. The **{rating_text}** rating on Steam is well-deserved.\n\n*{game_description[:100]}...*\n\nWith its {tag_str} elements, this game will provide exactly the immersive experience you are looking for."
+                        elif selected_lang == "日本語":
+                            critic_review = f"**'{user_keyword}'**の魅力を完璧に表現した傑作です。Steam評価**{rating_text}**は決して嘘をつきません。\n\n*{game_description[:100]}...*\n\n{tag_str}の要素を組み合わせたこのゲームは、あなたが求めていた没入感を提供してくれるでしょう。"
+                        elif selected_lang == "中文":
+                            critic_review = f"这是一部完美捕捉了**'{user_keyword}'**魅力的杰作。Steam上的**{rating_text}**评价绝非虚言。\n\n*{game_description[:100]}...*\n\n凭借其{tag_str}元素，这款游戏将提供您一直在寻找的沉浸式体验。"
+                        else: # Español
+                            critic_review = f"Una obra maestra que captura perfectamente la esencia de **'{user_keyword}'**. La calificación de **{rating_text}** en Steam es bien merecida.\n\n*{game_description[:100]}...*\n\nCon sus elementos de {tag_str}, este juego proporcionará exactamente la experiencia inmersiva que buscas."
+                        
                         st.info(critic_review)
                         
                         st.markdown(f"#### {t['guide_title']}")
+                        
+                        # 다국어 플레이 가이드 생성
                         if selected_lang == "한국어":
                             play_guide = f"1. **'{user_keyword}'** 키워드가 게임 속에서 어떻게 표현되었는지 관찰하세요.\n2. 실패를 두려워하지 말고 이 게임만의 템포에 몸을 맡겨보세요.\n3. 사운드를 꼭 켜고 세계관에 동화되는 것을 추천합니다."
-                        else:
+                        elif selected_lang == "English":
                             play_guide = f"1. Observe how the keyword **'{user_keyword}'** is represented in the game.\n2. Don't fear failure; adapt to the unique tempo of this game.\n3. Highly recommended to play with the sound ON to fully immerse yourself."
+                        elif selected_lang == "日本語":
+                            play_guide = f"1. **'{user_keyword}'**というキーワードがゲーム内でどのように表現されているか観察してください。\n2. 失敗を恐れず、このゲーム独自のテンポに身を任せてみましょう。\n3. サウンドをオンにして世界観に没入することを強くお勧めします。"
+                        elif selected_lang == "中文":
+                            play_guide = f"1. 观察**'{user_keyword}'**关键字在游戏中的表现方式。\n2. 不要害怕失败；适应这款游戏独特的节奏。\n3. 强烈建议开启声音以完全沉浸在世界观中。"
+                        else: # Español
+                            play_guide = f"1. Observa cómo se representa la palabra clave **'{user_keyword}'** en el juego.\n2. No temas al fracaso; adáptate al ritmo único de este juego.\n3. Se recomienda encarecidamente jugar con el sonido activado para sumergirte por completo."
+                            
                         st.success(play_guide)
             else:
                 st.error("NETWORK ERROR. Please try again.")
